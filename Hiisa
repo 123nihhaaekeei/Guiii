@@ -1,0 +1,299 @@
+--// Services
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local Lighting = game:GetService("Lighting")
+local RunService = game:GetService("RunService")
+local UserInput = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CoreGui = game:GetService("CoreGui")
+
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local MainEvent = ReplicatedStorage:WaitForChild("MainEvent")
+local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+-- Config
+local ForceHit = {
+    Enabled = false,
+    HitPart = "Head",
+    FOVRadius = 400
+}
+
+local BulletTracers = false
+local BulletWidth = 2
+local BTColor = Color3.fromRGB(255, 255, 255)
+
+-- UI
+local blur = Instance.new("BlurEffect")
+blur.Size = 24
+blur.Name = "IntroBlur"
+blur.Parent = Lighting
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "IntroGui"
+screenGui.IgnoreGuiInset = true
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+local imageLabel = Instance.new("ImageLabel")
+imageLabel.Size = UDim2.new(0, 200, 0, 200)
+imageLabel.Position = UDim2.new(0.5, -100, 0.5, -100)
+imageLabel.BackgroundTransparency = 1
+imageLabel.ImageTransparency = 1
+imageLabel.Image = "rbxassetid://84552134719867"
+imageLabel.Parent = screenGui
+
+local loadButton = Instance.new("TextButton")
+loadButton.Size = UDim2.new(0, 120, 0, 40)
+loadButton.Position = UDim2.new(0.5, -130, 0.8, 0)
+loadButton.BackgroundColor3 = Color3.fromRGB(60, 180, 75)
+loadButton.TextColor3 = Color3.new(1, 1, 1)
+loadButton.Text = "Load"
+loadButton.Font = Enum.Font.GothamBold
+loadButton.TextSize = 20
+loadButton.Parent = screenGui
+
+local closeButton = Instance.new("TextButton")
+closeButton.Size = UDim2.new(0, 120, 0, 40)
+closeButton.Position = UDim2.new(0.5, 10, 0.8, 0)
+closeButton.BackgroundColor3 = Color3.fromRGB(220, 50, 47)
+closeButton.TextColor3 = Color3.new(1, 1, 1)
+closeButton.Text = "Close"
+closeButton.Font = Enum.Font.GothamBold
+closeButton.TextSize = 20
+closeButton.Parent = screenGui
+
+TweenService:Create(imageLabel, TweenInfo.new(1), {ImageTransparency = 0.2}):Play()
+
+-- Lock Button GUI
+local sigmaGui = Instance.new("ScreenGui")
+sigmaGui.Name = "sigmaGui"
+sigmaGui.Parent = CoreGui
+sigmaGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+sigmaGui.ResetOnSpawn = false
+
+local ImageButton = Instance.new("ImageButton")
+ImageButton.Name = "ImageButton"
+ImageButton.Parent = sigmaGui
+ImageButton.Active = true
+ImageButton.Draggable = true
+ImageButton.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+ImageButton.BackgroundTransparency = 0.35
+ImageButton.Size = UDim2.new(0, 90, 0, 90)
+ImageButton.Position = UDim2.new(0.5, -45, 0.5, -45)
+ImageButton.Image = "rbxassetid://84552134719867"
+
+local UiCorner = Instance.new("UICorner")
+UiCorner.CornerRadius = UDim.new(0.2, 0)
+UiCorner.Parent = ImageButton
+
+local Highlight = Instance.new("Highlight")
+Highlight.FillColor = Color3.fromRGB(255, 255, 255)
+Highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+Highlight.FillTransparency = 0.5
+Highlight.OutlineTransparency = 0
+Highlight.Enabled = false
+Highlight.Parent = CoreGui
+
+local crosshair = Instance.new("ImageLabel")
+crosshair.Name = "SpinningCrosshair"
+crosshair.Parent = sigmaGui
+crosshair.AnchorPoint = Vector2.new(0.5, 0.5)
+crosshair.Position = UDim2.new(0.5, 0, 0.5, -150)
+crosshair.Size = UDim2.new(0, 50, 0, 50)
+crosshair.Image = "rbxassetid://3926307971"
+crosshair.ImageColor3 = Color3.new(1, 1, 1)
+crosshair.BackgroundTransparency = 1
+
+local pyramidText = Instance.new("TextLabel")
+pyramidText.Parent = sigmaGui
+pyramidText.AnchorPoint = Vector2.new(0.5, 0)
+pyramidText.Position = UDim2.new(0.5, 0, 0.5, -95)
+pyramidText.Size = UDim2.new(0, 200, 0, 30)
+pyramidText.BackgroundTransparency = 1
+pyramidText.Text = "PyramidHook"
+pyramidText.Font = Enum.Font.GothamBlack
+pyramidText.TextColor3 = Color3.new(1, 1, 1)
+pyramidText.TextSize = 20
+
+RunService.RenderStepped:Connect(function()
+    crosshair.Rotation = (crosshair.Rotation + 2) % 360
+end)
+
+-- Kill Sound Setup
+local killSound = Instance.new("Sound")
+killSound.SoundId = "rbxassetid://6565371338"  -- Replace with your own sound ID
+killSound.Volume = 1
+killSound.Name = "KillSound"
+killSound.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+-- Kill Marker Setup (UI Element)
+local killMarker = Instance.new("ImageLabel")
+killMarker.Name = "KillMarker"
+killMarker.Image = "rbxassetid://3926307971"  -- This can be any image you want for the kill marker
+killMarker.Size = UDim2.new(0, 100, 0, 100)
+killMarker.Position = UDim2.new(0.5, -50, 0.5, -50)
+killMarker.BackgroundTransparency = 1
+killMarker.ImageTransparency = 0.7
+killMarker.Visible = false
+killMarker.Parent = playerGui
+
+-- Closest Player Logic
+local LockedTarget = nil
+local CachedClosestPlayer = nil
+
+local function GetClosestPlayer()
+    local MousePos = UserInput:GetMouseLocation()
+    local ClosestDist, ClosestPart, ClosestChar = math.huge, nil, nil
+
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild(ForceHit.HitPart) then
+            local part = player.Character[ForceHit.HitPart]
+            local screenPos, onScreen = Camera:WorldToScreenPoint(part.Position)
+            if onScreen then
+                local dist = (Vector2.new(screenPos.X, screenPos.Y) - MousePos).Magnitude
+                if dist < ClosestDist and dist <= ForceHit.FOVRadius then
+                    ClosestDist = dist
+                    ClosestPart = part
+                    ClosestChar = player.Character
+                end
+            end
+        end
+    end
+
+    return ClosestPart, ClosestChar
+end
+
+ImageButton.MouseButton1Click:Connect(function()
+    ForceHit.Enabled = not ForceHit.Enabled
+
+    if ForceHit.Enabled then
+        local targetPart, targetChar = GetClosestPlayer()
+        if targetChar then
+            LockedTarget = targetChar
+            CachedClosestPlayer = targetPart
+            ImageButton.Image = "rbxassetid://110349736776719"
+            Highlight.Adornee = LockedTarget
+            Highlight.Enabled = true
+        else
+            ForceHit.Enabled = false
+        end
+    else
+        ImageButton.Image = "rbxassetid://133161299056338"
+        LockedTarget = nil
+        CachedClosestPlayer = nil
+        Highlight.Enabled = false
+    end
+end)
+
+-- Ultra Fast Auto Shoot (0 delay)
+RunService.Heartbeat:Connect(function()
+    if ForceHit.Enabled and LockedTarget and LockedTarget:FindFirstChild(ForceHit.HitPart) then
+        local humanoid = LockedTarget:FindFirstChildOfClass("Humanoid")
+        if not humanoid or humanoid.Health <= 0 then
+            -- If the target is dead, play kill sound and show kill marker
+            if humanoid.Health <= 0 then
+                if not killSound.IsPlaying then
+                    killSound:Play()  -- Play kill sound
+                end
+                
+                -- Show kill marker briefly
+                killMarker.Visible = true
+                task.delay(1, function()
+                    killMarker.Visible = false
+                end)
+            end
+            return
+        end
+
+        if LockedTarget:FindFirstChildOfClass("ForceField") then return end
+
+        local AimPart = LockedTarget[ForceHit.HitPart]
+
+        for i = 1, 20 do
+            local args = {
+                "Shoot",
+                {
+                    {
+                        [1] = {["Instance"] = AimPart, ["Normal"] = Vector3.new(), ["Position"] = AimPart.Position},
+                        [2] = {["Instance"] = AimPart, ["Normal"] = Vector3.new(), ["Position"] = AimPart.Position},
+                        [3] = {["Instance"] = AimPart, ["Normal"] = Vector3.new(), ["Position"] = AimPart.Position},
+                        [4] = {["Instance"] = AimPart, ["Normal"] = Vector3.new(), ["Position"] = AimPart.Position},
+                        [5] = {["Instance"] = AimPart, ["Normal"] = Vector3.new(), ["Position"] = AimPart.Position}
+                    },
+                    {
+                        [1] = {["thePart"] = AimPart, ["theOffset"] = CFrame.new()},
+                        [2] = {["thePart"] = AimPart, ["theOffset"] = CFrame.new()},
+                        [3] = {["thePart"] = AimPart, ["theOffset"] = CFrame.new()},
+                        [4] = {["thePart"] = AimPart, ["theOffset"] = CFrame.new()},
+                        [5] = {["thePart"] = AimPart, ["theOffset"] = CFrame.new()}
+                    },
+                    LocalPlayer.Character.Head.Position,
+                    LocalPlayer.Character.Head.Position,
+                    workspace:GetServerTimeNow()
+                }
+            }
+            MainEvent:FireServer(unpack(args))
+        end
+    end
+end)
+
+-- Aim Lock
+RunService.RenderStepped:Connect(function()
+    if ForceHit.Enabled and LockedTarget and LockedTarget:FindFirstChild(ForceHit.HitPart) then
+        local head = LockedTarget[ForceHit.HitPart]
+        CachedClosestPlayer = head
+        Camera.CFrame = CFrame.new(Camera.CFrame.Position, head.Position)
+    end
+end)
+
+-- Anti Kick Patch (continued)
+local mt = getrawmetatable(game)
+local oldNamecall = mt.__namecall
+setreadonly(mt, false)
+mt.__namecall = newcclosure(function(self, ...)
+    local args = {...}
+    local method = getnamecallmethod()
+
+    if ForceHit.Enabled and method == "FireServer" and self == MainEvent and args[1] == "Shoot" then
+        local target = CachedClosestPlayer
+        if target then
+            for _, shot in pairs(args[2][1]) do
+                shot["Instance"] = target
+            end
+            for _, data in pairs(args[2][2]) do
+                data["thePart"] = target
+                data["theOffset"] = CFrame.new()
+            end
+        end
+        return oldNamecall(self, unpack(args))
+    end
+
+    return oldNamecall(self, ...)
+end)
+
+-- UI Load + Close
+local function loaded()
+    loadButton.Visible = false
+    closeButton.Visible = false
+    TweenService:Create(imageLabel, TweenInfo.new(1.5), {
+        Position = UDim2.new(1, -110, 0, 10),
+        Size = UDim2.new(0, 100, 0, 100)
+    }):Play()
+    TweenService:Create(blur, TweenInfo.new(1.5), {Size = 0}):Play()
+    wait(1.5)
+    blur:Destroy()
+end
+
+local function closed()
+    loadButton.Visible = false
+    closeButton.Visible = false
+    TweenService:Create(imageLabel, TweenInfo.new(1), {ImageTransparency = 1}):Play()
+    TweenService:Create(blur, TweenInfo.new(1), {Size = 0}):Play()
+    wait(1)
+    blur:Destroy()
+    screenGui:Destroy()
+end
+
+loadButton.MouseButton1Click:Connect(loaded)
+closeButton.MouseButton1Click:Connect(closed)
