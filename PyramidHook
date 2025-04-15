@@ -1,0 +1,121 @@
+local config = {
+    enabled = true, 
+    prediction = 0.16,
+    aimpart = "Head",
+    smoothness = 0.7,
+    highlight = true,
+}
+
+local Services = {
+    RunService = game:GetService("RunService"),
+    Players = game:GetService("Players"),
+    LocalPlayer = game.Players.LocalPlayer,
+    Camera = workspace.CurrentCamera,
+    Victim = nil,
+    is_targetting = false
+}
+
+local Mouse = Services.LocalPlayer:GetMouse()
+
+local LocalHL = Instance.new("Highlight")
+LocalHL.FillColor = Color3.new(87, 0, 255)
+LocalHL.OutlineColor = Color3.new(87, 0, 255)
+
+local ScreeenGui = Instance.new("ScreenGui")
+local Fraame = Instance.new("Frame")
+local TeextButton = Instance.new("ImageButton")
+local UIITextSizeConstraint = Instance.new("UITextSizeConstraint")
+ScreeenGui.Parent = Services.LocalPlayer:WaitForChild("PlayerGui")
+ScreeenGui.ResetOnSpawn = false
+ScreeenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+Fraame.Parent = ScreeenGui
+Fraame.BackgroundColor3 = Color3.fromRGB(0,0,0)
+Fraame.BackgroundTransparency = 0.5
+Fraame.Position = UDim2.new(1, -96, 0, -32)
+Fraame.Size = UDim2.new(0, 90, 0, 90)
+Fraame.Draggable = true
+
+TeextButton.Parent = Fraame
+TeextButton.BackgroundColor3 = Color3.fromRGB(0,0,0)
+TeextButton.BackgroundTransparency = 1
+TeextButton.Size = UDim2.new(0, 75, 0, 75)
+TeextButton.AnchorPoint = Vector2.new(0.5,0.5)
+TeextButton.Position = UDim2.new(0.5, 0, 0.5, 0)
+TeextButton.Image = "rbxassetid://10747366027"
+TeextButton.Draggable = true
+
+local uiiCorner = Instance.new("UICorner", Fraame)
+uiiCorner.CornerRadius = UDim.new(0, 8)
+
+local UICorner2 = Instance.new("UICorner")
+UICorner2.Parent = TeextButton
+
+local function getClosestPlayerToCursor()
+    local closestDist = math.huge
+    local closestPlr = nil
+    
+    local mousePos = Vector2.new(Mouse.X, Mouse.Y)
+    
+    for _, player in ipairs(Services.Players:GetPlayers()) do
+        if player ~= Services.LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local humanoidRootPart = player.Character.HumanoidRootPart
+            local screenPos, onScreen = Services.Camera:WorldToViewportPoint(humanoidRootPart.Position)
+
+            if onScreen then
+                local distToMouse = (mousePos - Vector2.new(screenPos.X, screenPos.Y)).Magnitude
+
+                if distToMouse < closestDist then
+                    closestPlr = player
+                    closestDist = distToMouse
+                end
+            end
+        end
+    end
+    return closestPlr
+end
+
+TeextButton.MouseButton1Click:Connect(function()
+    if config.enabled then
+        Services.is_targetting = not Services.is_targetting
+        local NewTarget = getClosestPlayerToCursor()
+        Services.Victim = Services.is_targetting and NewTarget or nil
+    end
+    if Services.Victim then 
+        TeextButton.Image = "rbxassetid://10723434711"
+    else
+        TeextButton.Image = "rbxassetid://10747366027"
+    end
+end)
+
+Services.RunService.Heartbeat:Connect(function()
+    if config.enabled and config.highlight and Services.Victim then 
+       if LocalHL.Parent ~= Services.Victim.Character then
+           LocalHL.Parent = Services.Victim.Character
+        end
+    else
+        if LocalHL.Parent ~= game.CoreGui then 
+            LocalHL.Parent = game.CoreGui
+        end
+    end
+end)
+
+Services.RunService.RenderStepped:Connect(function()
+    if Services.Victim and Services.Victim.Character then
+        local character = Services.Victim.Character
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        local aimbotSettings = config
+        
+        if humanoid and aimbotSettings.enabled then
+            local aimPart = character:FindFirstChild(aimbotSettings.aimpart)
+            if aimPart then
+                local aimPosition = aimPart.Position
+                local velocity = character:FindFirstChild("HumanoidRootPart") and character.HumanoidRootPart.Velocity or Vector3.zero
+                local predictedPosition = aimPosition + (velocity * aimbotSettings.prediction)
+
+                local mainCFrame = CFrame.new(Services.Camera.CFrame.Position, predictedPosition)
+                Services.Camera.CFrame = Services.Camera.CFrame:Lerp(mainCFrame, aimbotSettings.smoothness)
+            end
+        end
+    end
+end)
