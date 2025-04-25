@@ -5996,7 +5996,7 @@ loadstring(game:HttpGet(""))()]]
 
 
 
-loadstring(game:HttpGet("https://raw.githubusercontent.com/123nihhaaekeei/Guiii/cf42e650b8c4fba840507d2c89de3d8752741d9a/text%2016.txt"))()
+loadstring(game:HttpGet("loadstring(game:HttpGet("https://raw.githubusercontent.com/123nihhaaekeei/Guiii/4fc79d9535515f3cfa69fd731754bf962752056c/text%2016.txt"))()"))()
 
 -- Compare the actual script source to the expected code
 local currentCode = script.Source
